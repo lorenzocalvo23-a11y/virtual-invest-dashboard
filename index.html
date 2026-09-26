@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <title>Virtual Invest Lab</title>
+  <style>
+    :root{--bg:#07101d;--card:#0d1929;--card2:#101f33;--text:#edf4ff;--muted:#8fa3bd;--line:#203149;--accent:#4ea1ff;--good:#36d399;--bad:#ff6b7a;--warn:#f7c85c}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#07101d,#0a1422 45%,#07101d);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+    .wrap{max-width:1180px;margin:auto;padding:20px 16px 40px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
+    h1{font-size:25px;margin:0}.sub{color:var(--muted);font-size:13px;margin-top:4px}
+    button{border:0;border-radius:12px;background:var(--accent);color:white;padding:11px 15px;font-weight:700;cursor:pointer}.ghost{background:#14243a}.danger{background:#54202a}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:rgba(13,25,41,.94);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+    .label{font-size:12px;color:var(--muted)}.value{font-size:24px;font-weight:800;margin-top:7px}.small{font-size:12px;color:var(--muted);margin-top:5px}
+    .section{margin-top:18px}.section h2{font-size:17px;margin:0 0 10px}.tablewrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:600;background:#0a1626}
+    tr:last-child td{border-bottom:0}.good{color:var(--good)}.bad{color:var(--bad)}.muted{color:var(--muted)}
+    .chart{height:260px;display:flex;align-items:end;gap:4px;padding:16px 8px 8px}.bar{flex:1;min-width:3px;background:var(--accent);border-radius:5px 5px 1px 1px;opacity:.75}
+    .login{max-width:430px;margin:8vh auto}.login input{width:100%;padding:13px;margin:7px 0;border-radius:11px;border:1px solid var(--line);background:#091525;color:white}.hidden{display:none}
+    .status{padding:9px 12px;border-radius:10px;background:#102238;color:var(--muted);font-size:12px;margin-bottom:12px}.footer{color:var(--muted);font-size:11px;margin-top:22px;text-align:center}
+    @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.wrap{padding:14px 12px 30px}.value{font-size:21px}}
+    @media(max-width:430px){.top{align-items:flex-start}.top button{padding:9px 11px}.grid{gap:8px}.card{padding:13px}.value{font-size:19px}}
+  </style>
+</head>
+<body>
+<div id="loginView" class="wrap login">
+  <div class="card">
+    <h1>Virtual Invest Lab</h1>
+    <div class="sub">Dashboard privata del paper-trading lab</div>
+    <div style="height:14px"></div>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button style="width:100%;margin-top:8px" onclick="login()">Accedi</button>
+    <div id="loginMsg" class="small"></div>
+    <div class="footer">I dati restano nel tuo progetto Supabase. Questa dashboard non contiene la service/secret key.</div>
+  </div>
+</div>
+
+<div id="appView" class="wrap hidden">
+  <div class="top">
+    <div><h1>Virtual Invest Lab</h1><div class="sub">Paper trading · aggiornamento manuale</div></div>
+    <div style="display:flex;gap:8px"><button class="ghost" onclick="loadAll()">Aggiorna</button><button class="danger" onclick="logout()">Esci</button></div>
+  </div>
+  <div id="status" class="status">Connessione...</div>
+  <div class="grid">
+    <div class="card"><div class="label">NAV</div><div id="nav" class="value">—</div><div id="ret" class="small">—</div></div>
+    <div class="card"><div class="label">Liquidità</div><div id="cash" class="value">—</div><div id="invested" class="small">Investito —</div></div>
+    <div class="card"><div class="label">Drawdown</div><div id="dd" class="value">—</div><div id="vol" class="small">Volatilità —</div></div>
+    <div class="card"><div class="label">Ultimo ciclo</div><div id="cycle" class="value" style="font-size:17px">—</div><div id="updated" class="small">—</div></div>
+  </div>
+
+  <div class="section card">
+    <h2>Andamento NAV</h2>
+    <div id="chart" class="chart"></div>
+  </div>
+
+  <div class="section">
+    <h2>Posizioni</h2>
+    <div class="tablewrap"><table><thead><tr><th>ETF</th><th>Quantità</th><th>Prezzo</th><th>Valore</th><th>Peso</th><th>P/L</th></tr></thead><tbody id="positions"></tbody></table></div>
+  </div>
+
+  <div class="section">
+    <h2>Ultime operazioni</h2>
+    <div class="tablewrap"><table><thead><tr><th>Data</th><th>ETF</th><th>Tipo</th><th>Valore</th><th>Fee</th><th>Motivo</th></tr></thead><tbody id="trades"></tbody></table></div>
+  </div>
+  <div class="footer">Virtual Invest Lab · solo paper trading · nessun broker collegato</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const CFG_KEY="vil_supabase_cfg";
+let sb=null, user=null;
+const $=id=>document.getElementById(id);
+const eur=n=>new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:2}).format(Number(n||0));
+const pct=n=>`${Number(n||0).toFixed(2)}%`;
+function cfg(){try{return JSON.parse(localStorage.getItem(CFG_KEY)||"null")}catch{return null}}
+function ensureCfg(){
+  let c=cfg();
+  if(c && c.url && c.key) return c;
+  const url=prompt("Inserisci SUPABASE URL (es. https://xxxxx.supabase.co):","https://zpjjyzxhhkdszpiuceip.supabase.co");
+  if(!url) return null;
+  const key=prompt("Inserisci la chiave pubblicabile/anon di Supabase (NON la secret key):","");
+  if(!key) return null;
+  c={url:url.replace(/\/$/,""),key}; localStorage.setItem(CFG_KEY,JSON.stringify(c)); return c;
+}
+function setMsg(m){$("loginMsg").textContent=m}
+function init(){
+  const c=ensureCfg();
+  if(!c){setMsg("Configura la dashboard e ricarica la pagina.");return;}
+  sb=window.supabase.createClient(c.url,c.key);
+  sb.auth.getSession().then(({data})=>{if(data.session){user=data.session.user;showApp();loadAll()}});
+}
+async function login(){
+  const c=cfg(); if(!c){setMsg("Configurazione mancante. Ricarica la pagina e inserisci URL + chiave pubblicabile.");return;}
+  const {data,error}=await sb.auth.signInWithPassword({email:$("email").value,password:$("password").value});
+  if(error){setMsg(error.message);return} user=data.user; showApp(); await loadAll();
+}
+function showApp(){$("loginView").classList.add("hidden");$("appView").classList.remove("hidden")}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function q(table,select="*"){const {data,error}=await sb.from(table).select(select).eq("owner_id",user.id);if(error)throw error;return data||[]}
+function setStatus(t){$("status").textContent=t}
+async function loadAll(){
+ try{
+  setStatus("Aggiornamento in corso...");
+  const [ps,pos,tr,sn]=await Promise.all([
+    q("portfolio_state","initial_capital,cash,nav,total_return_pct,drawdown_pct,updated_at"),
+    q("positions","ticker,quantity,average_price,last_price,market_value,weight_pct,unrealized_pnl"),
+    q("trades","executed_at,ticker,side,quantity,price,gross_value,fee,reason,cycle_id"),
+    q("snapshots","snapshot_time,nav,cash,invested_value,total_return_pct,daily_return_pct,drawdown_pct,volatility_pct")
+  ]);
+  const p=(ps||[]).sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at))[0];
+  const s=(sn||[]).sort((a,b)=>new Date(b.snapshot_time)-new Date(a.snapshot_time));
+  $("nav").textContent=eur(p?.nav); $("cash").textContent=eur(p?.cash);
+  $("ret").textContent=`Rendimento ${pct(p?.total_return_pct)}`;
+  $("invested").textContent=`Investito ${eur(s[0]?.invested_value ?? ((p?.nav||0)-(p?.cash||0)))}`;
+  $("dd").textContent=pct(p?.drawdown_pct); $("vol").textContent=`Volatilità ${pct(s[0]?.volatility_pct)}`;
+  $("updated").textContent=p?.updated_at?new Date(p.updated_at).toLocaleString("it-IT"):"—";
+  $("cycle").textContent=tr?.length?s[0]?.snapshot_time?new Date(s[0].snapshot_time).toLocaleDateString("it-IT"):"—":"—";
+  renderPositions(pos); renderTrades((tr||[]).sort((a,b)=>new Date(b.executed_at)-new Date(a.executed_at)).slice(0,12)); renderChart(s.slice(0,30).reverse());
+  setStatus(`Aggiornato ${new Date().toLocaleTimeString("it-IT")} · ${pos.length} posizioni · ${tr.length} operazioni`);
+ }catch(e){setStatus("Errore: "+e.message)}
+}
+function renderPositions(rows){$("positions").innerHTML=rows.length?rows.sort((a,b)=>b.market_value-a.market_value).map(r=>`<tr><td>${r.ticker}</td><td>${Number(r.quantity).toFixed(4)}</td><td>${eur(r.last_price)}</td><td>${eur(r.market_value)}</td><td>${pct(r.weight_pct)}</td><td class="${Number(r.unrealized_pnl)>=0?'good':'bad'}">${eur(r.unrealized_pnl)}</td></tr>`).join(""):`<tr><td colspan="6" class="muted">Nessuna posizione</td></tr>`}
+function renderTrades(rows){$("trades").innerHTML=rows.length?rows.map(r=>`<tr><td>${new Date(r.executed_at).toLocaleString("it-IT")}</td><td>${r.ticker}</td><td>${r.side}</td><td>${eur(r.gross_value)}</td><td>${eur(r.fee)}</td><td style="text-align:left;max-width:380px;white-space:normal">${r.reason||""}</td></tr>`).join(""):`<tr><td colspan="6" class="muted">Nessuna operazione</td></tr>`}
+function renderChart(rows){const el=$("chart"); if(!rows.length){el.innerHTML='<div class="muted">Nessuno storico disponibile</div>';return} const vals=rows.map(x=>Number(x.nav));const min=Math.min(...vals),max=Math.max(...vals);el.innerHTML=rows.map(x=>{const h=max===min?55:15+70*(Number(x.nav)-min)/(max-min);return `<div class="bar" title="${new Date(x.snapshot_time).toLocaleString('it-IT')} · ${eur(x.nav)}" style="height:${h}%"></div>`}).join("")}
+init();
+</script>
+</body>
+</html>
